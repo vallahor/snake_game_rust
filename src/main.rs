@@ -16,6 +16,15 @@ const GRID_OFFSET: i32 = 50;
 const BLOCK_SIZE_X: i32 = (WINDOW_WIDTH - 2 * GRID_OFFSET) / 10;
 const BLOCK_SIZE_Y: i32 = (WINDOW_HEIGHT - 2 * GRID_OFFSET) / 10;
 
+#[derive(Default, PartialEq)]
+enum State {
+    #[default]
+    START,
+    PLAYING,
+    GAMEOVER,
+    PAUSED,
+}
+
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
 enum Direction {
     #[default]
@@ -65,20 +74,6 @@ impl Direction {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, PartialEq)]
-enum BoardCell {
-    #[default]
-    SNAKE_BODY,
-    APPLE,
-    EMPTY,
-}
-
-impl BoardCell {
-    fn insert(&mut self, cell: BoardCell) {
-        *self = cell;
-    }
-}
-
 #[derive(Default, Copy, Clone, Debug)]
 struct Vec2<T> {
     x: T,
@@ -109,6 +104,7 @@ struct Game {
     snake_body: HashMap<(String, i32), Texture2D>,
     paused: bool,
     next_direction: Direction,
+    state: State,
 }
 
 impl Game {
@@ -130,7 +126,28 @@ impl Game {
             snake_body: HashMap::new(),
             paused: false,
             next_direction: Direction::DOWN,
+            state: State::START,
         }
+    }
+
+    fn reset(&mut self) {
+        self.snake = vec![
+            SnakeBody {
+                pos: Vec2 { x: 3, y: 3 },
+                direction: Direction::DOWN,
+            },
+            SnakeBody {
+                pos: Vec2 { x: 3, y: 4 },
+                direction: Direction::DOWN,
+            },
+        ];
+
+        self.apple = Vec2 { x: 3, y: 7 };
+        self.time = 0.0;
+        self.score = 0;
+        self.paused = false;
+        self.next_direction = Direction::DOWN;
+        self.state = State::START;
     }
 
     fn load_assets(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {
@@ -156,6 +173,16 @@ impl Game {
     }
 
     fn update(&mut self, rl: &RaylibHandle) {
+        match self.state {
+            State::PLAYING | State::PAUSED => {
+                self.playing(rl);
+            }
+            State::START => {}
+            State::GAMEOVER => {}
+        }
+    }
+
+    fn playing(&mut self, rl: &RaylibHandle) {
         let len = self.snake.len() - 1;
         self.next_direction.change(rl);
 
@@ -187,7 +214,8 @@ impl Game {
                     .push(SnakeBody::new(x as usize, y as usize, snake.direction));
                 self.add_apple();
             } else if self.snake_collide(x as usize, y as usize) {
-                println!("SNAKE");
+                self.paused = true;
+                self.state = State::GAMEOVER;
             } else {
                 let mut last_state = self.snake[len].clone();
 
@@ -229,89 +257,145 @@ impl Game {
     }
 
     fn render(&self, render: &mut RaylibDrawHandle) {
-        let width: i32 = GRID_X as i32 * BLOCK_SIZE_X;
-        let height: i32 = GRID_Y as i32 * BLOCK_SIZE_Y;
-
-        for y in 0..=GRID_Y {
-            for x in 0..=GRID_X {
-                render.draw_line(
-                    GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
-                    GRID_OFFSET + y as i32 * BLOCK_SIZE_Y,
-                    width,
-                    GRID_OFFSET + y as i32 * BLOCK_SIZE_Y,
-                    Color::BLACK,
+        match self.state {
+            State::START => {
+                render.draw_text(
+                    &format!("LET'S PLAY"),
+                    (WINDOW_WIDTH / 2) - 300,
+                    (WINDOW_HEIGHT / 2) as i32,
+                    100,
+                    Color::GRAY,
                 );
 
-                render.draw_line(
-                    GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
-                    GRID_OFFSET + y as i32 * BLOCK_SIZE_Y,
-                    GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
-                    height,
-                    Color::BLACK,
+                render.draw_text(
+                    &format!("Press SPACE to PLAY"),
+                    (WINDOW_WIDTH / 2) - 300,
+                    (WINDOW_HEIGHT / 2) + 100,
+                    50,
+                    Color::GRAY,
                 );
             }
-        }
+            State::GAMEOVER => {
+                render.draw_text(
+                    &format!("GAME OVER!"),
+                    GRID_OFFSET,
+                    (WINDOW_HEIGHT / 2) as i32,
+                    100,
+                    Color::GRAY,
+                );
 
-        for y in 0..GRID_Y {
-            for x in 0..GRID_X {
+                render.draw_text(
+                    &format!("Press SPACE to PLAY AGAIN"),
+                    GRID_OFFSET,
+                    (WINDOW_HEIGHT / 2) + 100,
+                    50,
+                    Color::GRAY,
+                );
+            }
+            _ => {
+                let width: i32 = GRID_X as i32 * BLOCK_SIZE_X;
+                let height: i32 = GRID_Y as i32 * BLOCK_SIZE_Y;
+
+                for y in 0..=GRID_Y {
+                    for x in 0..=GRID_X {
+                        render.draw_line(
+                            GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
+                            GRID_OFFSET + y as i32 * BLOCK_SIZE_Y,
+                            width,
+                            GRID_OFFSET + y as i32 * BLOCK_SIZE_Y,
+                            Color::BLACK,
+                        );
+
+                        render.draw_line(
+                            GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
+                            GRID_OFFSET + y as i32 * BLOCK_SIZE_Y,
+                            GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
+                            height,
+                            Color::BLACK,
+                        );
+                    }
+                }
+
+                for y in 0..GRID_Y {
+                    for x in 0..GRID_X {
+                        render.draw_rectangle(
+                            GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
+                            GRID_OFFSET + 1 + y as i32 * BLOCK_SIZE_Y,
+                            BLOCK_SIZE_X - 1,
+                            BLOCK_SIZE_Y - 1,
+                            Color::WHITE,
+                        );
+                    }
+                }
+
                 render.draw_rectangle(
-                    GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
-                    GRID_OFFSET + 1 + y as i32 * BLOCK_SIZE_Y,
+                    GRID_OFFSET + self.apple.x as i32 * BLOCK_SIZE_X,
+                    GRID_OFFSET + 1 + self.apple.y as i32 * BLOCK_SIZE_Y,
                     BLOCK_SIZE_X - 1,
                     BLOCK_SIZE_Y - 1,
-                    Color::WHITE,
+                    Color::RED,
                 );
+
+                let len = self.snake.len() - 1;
+
+                render.draw_texture(
+                    &self
+                        .snake_body
+                        .get(&("head".to_string(), self.snake[len].direction.rotation()))
+                        .unwrap(),
+                    GRID_OFFSET + self.snake[len].pos.x as i32 * BLOCK_SIZE_X,
+                    GRID_OFFSET + 1 + self.snake[len].pos.y as i32 * BLOCK_SIZE_Y,
+                    Color::LIGHTGRAY,
+                );
+
+                render.draw_texture(
+                    &self
+                        .snake_body
+                        .get(&("tail".to_string(), self.snake[0].direction.rotation()))
+                        .unwrap(),
+                    GRID_OFFSET + self.snake[0].pos.x as i32 * BLOCK_SIZE_X,
+                    GRID_OFFSET + 1 + self.snake[0].pos.y as i32 * BLOCK_SIZE_Y,
+                    Color::LIGHTGRAY,
+                );
+
+                for snake_index in 1..len {
+                    let (body_part, rotation) = self.get_snake_body(snake_index);
+
+                    render.draw_texture(
+                        &self.snake_body.get(&(body_part, rotation)).unwrap(),
+                        GRID_OFFSET + self.snake[snake_index].pos.x as i32 * BLOCK_SIZE_X,
+                        GRID_OFFSET + 1 + self.snake[snake_index].pos.y as i32 * BLOCK_SIZE_Y,
+                        Color::LIGHTGRAY,
+                    );
+                }
+
+                render.draw_text(
+                    &format!("Score: {}", self.score),
+                    GRID_OFFSET,
+                    (GRID_OFFSET / 2) as i32,
+                    20,
+                    Color::GREEN,
+                );
+
+                if self.state == State::PAUSED {
+                    render.draw_text(
+                        &format!("PAUSED"),
+                        (WINDOW_WIDTH / 2) - 300,
+                        (WINDOW_HEIGHT / 2) as i32,
+                        100,
+                        Color::GRAY,
+                    );
+
+                    render.draw_text(
+                        &format!("Press SPACE to PLAY"),
+                        (WINDOW_WIDTH / 2) - 300,
+                        (WINDOW_HEIGHT / 2) + 100,
+                        50,
+                        Color::GRAY,
+                    );
+                }
             }
         }
-
-        render.draw_rectangle(
-            GRID_OFFSET + self.apple.x as i32 * BLOCK_SIZE_X,
-            GRID_OFFSET + 1 + self.apple.y as i32 * BLOCK_SIZE_Y,
-            BLOCK_SIZE_X - 1,
-            BLOCK_SIZE_Y - 1,
-            Color::RED,
-        );
-
-        let len = self.snake.len() - 1;
-
-        render.draw_texture(
-            &self
-                .snake_body
-                .get(&("head".to_string(), self.snake[len].direction.rotation()))
-                .unwrap(),
-            GRID_OFFSET + self.snake[len].pos.x as i32 * BLOCK_SIZE_X,
-            GRID_OFFSET + 1 + self.snake[len].pos.y as i32 * BLOCK_SIZE_Y,
-            Color::LIGHTGRAY,
-        );
-
-        render.draw_texture(
-            &self
-                .snake_body
-                .get(&("tail".to_string(), self.snake[0].direction.rotation()))
-                .unwrap(),
-            GRID_OFFSET + self.snake[0].pos.x as i32 * BLOCK_SIZE_X,
-            GRID_OFFSET + 1 + self.snake[0].pos.y as i32 * BLOCK_SIZE_Y,
-            Color::LIGHTGRAY,
-        );
-
-        for snake_index in 1..len {
-            let (body_part, rotation) = self.get_snake_body(snake_index);
-
-            render.draw_texture(
-                &self.snake_body.get(&(body_part, rotation)).unwrap(),
-                GRID_OFFSET + self.snake[snake_index].pos.x as i32 * BLOCK_SIZE_X,
-                GRID_OFFSET + 1 + self.snake[snake_index].pos.y as i32 * BLOCK_SIZE_Y,
-                Color::LIGHTGRAY,
-            );
-        }
-
-        render.draw_text(
-            &format!("Score: {}", self.score),
-            GRID_OFFSET,
-            (GRID_OFFSET / 2) as i32,
-            20,
-            Color::GREEN,
-        );
     }
 
     fn get_snake_body(&self, snake_index: usize) -> (String, i32) {
@@ -353,6 +437,7 @@ impl Game {
         }
     }
 
+    // DEBUG
     fn hover(&self, render: &mut RaylibDrawHandle, mouse_at: Vector2) {
         let mouse_x = mouse_at.x as usize;
         let mouse_y = mouse_at.y as usize;
@@ -433,7 +518,20 @@ fn main() {
 
     while !rl.window_should_close() {
         if rl.is_key_pressed(KEY_SPACE) {
-            game.paused = !game.paused;
+            match game.state {
+                State::PLAYING | State::PAUSED => {
+                    game.paused = !game.paused;
+                    game.state = if game.paused {
+                        State::PAUSED
+                    } else {
+                        State::PLAYING
+                    };
+                }
+                State::START => {
+                    game.state = State::PLAYING;
+                }
+                State::GAMEOVER => game.reset(),
+            }
         }
 
         let mouse_at = rl.get_mouse_position();
