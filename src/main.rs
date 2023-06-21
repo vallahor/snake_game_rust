@@ -109,6 +109,7 @@ struct Game {
     score: usize,
     snake_body: HashMap<(String, i32), Texture2D>,
     paused: bool,
+    next_direction: Direction,
 }
 
 impl Game {
@@ -130,6 +131,7 @@ impl Game {
             score: 0,
             snake_body: HashMap::new(),
             paused: false,
+            next_direction: Direction::DOWN,
         }
     }
 
@@ -157,10 +159,11 @@ impl Game {
 
     fn update(&mut self, rl: &RaylibHandle) {
         let len = self.snake.len() - 1;
-        self.snake[len].direction.change(rl);
+        self.next_direction.change(rl);
 
         if self.time > 0.5 && !self.paused {
             self.time = 0.0;
+            self.snake[len].direction = self.next_direction;
 
             let snake = &self.snake[len];
             let pos = snake.pos;
@@ -204,6 +207,7 @@ impl Game {
                 }
             }
         }
+
         self.time += rl.get_frame_time();
 
         self.reset_board();
@@ -310,35 +314,32 @@ impl Game {
         let before = self.snake[snake_index - 1].pos;
         let after = self.snake[snake_index + 1].pos;
         let snake = self.snake[snake_index].pos;
-        let len = self.snake.len() - 1;
+        let len_x = GRID_X - 1;
+        let len_y = GRID_Y - 1;
 
         let left = if snake.x as i32 - 1 < 0 {
-            len
+            len_x
         } else {
             snake.x - 1
         };
 
+        let right = if snake.x + 1 > len_x { 0 } else { snake.x + 1 };
+
         let up = if snake.y as i32 - 1 < 0 {
-            len
+            len_y
         } else {
             snake.y - 1
         };
 
-        if (up == after.y && snake.x + 1 == before.x) || (up == before.y && snake.x + 1 == after.x)
-        {
+        let down = if snake.y + 1 > len_y { 0 } else { snake.y + 1 };
+
+        if (up == after.y && right == before.x) || (up == before.y && right == after.x) {
             ("curved_body".to_string(), 0)
-        } else if (up == after.y && left == before.x)
-            || (up == before.y && left == after.x)
-            || (up == after.y && left == len)
-        {
+        } else if (up == after.y && left == before.x) || (up == before.y && left == after.x) {
             ("curved_body".to_string(), 90)
-        } else if (snake.y + 1 == after.y && left == before.x)
-            || (snake.y + 1 == before.y && left == after.x)
-        {
+        } else if (down == after.y && left == before.x) || (down == before.y && left == after.x) {
             ("curved_body".to_string(), 180)
-        } else if (snake.y + 1 == after.y && snake.x + 1 == before.x)
-            || (snake.y + 1 == before.y && snake.x + 1 == after.x)
-        {
+        } else if (down == after.y && right == before.x) || (down == before.y && right == after.x) {
             ("curved_body".to_string(), 270)
         } else {
             (
@@ -377,6 +378,27 @@ impl Game {
                         GRID_OFFSET,
                         30,
                         Color::RED,
+                    );
+                    render.draw_text(
+                        &format!("before: {:?}\n", self.snake[snake_index - 1].pos),
+                        GRID_OFFSET,
+                        GRID_OFFSET + 150,
+                        30,
+                        Color::BLUE,
+                    );
+                    render.draw_text(
+                        &format!("current: {:?}\n", self.snake[snake_index].pos),
+                        GRID_OFFSET,
+                        GRID_OFFSET + 250,
+                        30,
+                        Color::GREEN,
+                    );
+                    render.draw_text(
+                        &format!("after: {:?}\n", self.snake[snake_index + 1].pos),
+                        GRID_OFFSET,
+                        GRID_OFFSET + 350,
+                        30,
+                        Color::BLUE,
                     );
                 } else {
                     render.draw_text(
