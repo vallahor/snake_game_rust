@@ -184,17 +184,26 @@ impl Game {
         }
     }
 
-    fn update(&mut self, rl: &RaylibHandle) {
-        match self.state {
-            State::PLAYING | State::PAUSED => {
-                self.playing(rl);
+    fn input(&mut self, rl: &RaylibHandle) {
+        if rl.is_key_pressed(KEY_SPACE) {
+            match self.state {
+                State::PLAYING | State::PAUSED => {
+                    self.paused = !self.paused;
+                    self.state = if self.paused {
+                        State::PAUSED
+                    } else {
+                        State::PLAYING
+                    };
+                }
+                State::START => {
+                    self.state = State::PLAYING;
+                }
+                State::GAMEOVER => self.reset(),
             }
-            State::START => {}
-            State::GAMEOVER => {}
         }
     }
 
-    fn playing(&mut self, rl: &RaylibHandle) {
+    fn update(&mut self, rl: &RaylibHandle) {
         let len = self.snake.len() - 1;
         self.next_direction.change(rl);
 
@@ -506,23 +515,7 @@ fn main() {
     game.load_assets(&mut rl, &thread);
 
     while !rl.window_should_close() {
-        if rl.is_key_pressed(KEY_SPACE) {
-            match game.state {
-                State::PLAYING | State::PAUSED => {
-                    game.paused = !game.paused;
-                    game.state = if game.paused {
-                        State::PAUSED
-                    } else {
-                        State::PLAYING
-                    };
-                }
-                State::START => {
-                    game.state = State::PLAYING;
-                }
-                State::GAMEOVER => game.reset(),
-            }
-        }
-
+        game.input(&rl);
         let mouse_at = rl.get_mouse_position();
 
         game.update(&rl);
