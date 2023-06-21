@@ -35,12 +35,24 @@ enum Direction {
 }
 
 impl Direction {
-    fn next(&self) -> Vec2<i32> {
-        match self {
-            Self::UP => Vec2 { x: 0, y: -1 },
-            Self::DOWN => Vec2 { x: 0, y: 1 },
-            Self::LEFT => Vec2 { x: -1, y: 0 },
-            Self::RIGHT => Vec2 { x: 1, y: 0 },
+    fn next(&self, pos: Vec2<usize>) -> (usize, usize) {
+        match *self {
+            Direction::UP => {
+                let y = if pos.y == 0 { GRID_Y - 1 } else { pos.y - 1 };
+                (pos.x, y)
+            }
+            Direction::DOWN => {
+                let y = if pos.y == GRID_Y - 1 { 0 } else { pos.y + 1 };
+                (pos.x, y)
+            }
+            Direction::LEFT => {
+                let x = if pos.x == 0 { GRID_X - 1 } else { pos.x - 1 };
+                (x, pos.y)
+            }
+            Direction::RIGHT => {
+                let x = if pos.x == GRID_Y - 1 { 0 } else { pos.x + 1 };
+                (x, pos.y)
+            }
         }
     }
 
@@ -191,36 +203,21 @@ impl Game {
             self.snake[len].direction = self.next_direction;
 
             let snake = &self.snake[len];
-            let pos = snake.pos;
-            let next = snake.direction.next();
-            let mut x = pos.x as i32 + next.x;
-            let mut y = pos.y as i32 + next.y;
 
-            if x < 0 {
-                x = GRID_X as i32 - 1;
-            } else if x > GRID_X as i32 - 1 {
-                x = 0;
-            }
+            let (x, y) = snake.direction.next(snake.pos);
 
-            if y < 0 {
-                y = GRID_Y as i32 - 1;
-            } else if y > GRID_Y as i32 - 1 {
-                y = 0;
-            }
-
-            if x as usize == self.apple.x && y as usize == self.apple.y {
+            if x == self.apple.x && y == self.apple.y {
                 self.score += 100;
-                self.snake
-                    .push(SnakeBody::new(x as usize, y as usize, snake.direction));
+                self.snake.push(SnakeBody::new(x, y, snake.direction));
                 self.add_apple();
-            } else if self.snake_collide(x as usize, y as usize) {
+            } else if self.snake_collide(x, y) {
                 self.paused = true;
                 self.state = State::GAMEOVER;
             } else {
                 let mut last_state = self.snake[len].clone();
 
-                self.snake[len].pos.x = x as usize;
-                self.snake[len].pos.y = y as usize;
+                self.snake[len].pos.x = x;
+                self.snake[len].pos.y = y;
 
                 for index in 1..=len {
                     let temp = self.snake[len - index].clone();
@@ -405,21 +402,13 @@ impl Game {
         let len_x = GRID_X - 1;
         let len_y = GRID_Y - 1;
 
-        let left = if snake.x as i32 - 1 < 0 {
-            len_x
-        } else {
-            snake.x - 1
-        };
+        let left = if snake.x == 0 { len_x } else { snake.x - 1 };
 
-        let right = if snake.x + 1 > len_x { 0 } else { snake.x + 1 };
+        let right = if snake.x == len_x { 0 } else { snake.x + 1 };
 
-        let up = if snake.y as i32 - 1 < 0 {
-            len_y
-        } else {
-            snake.y - 1
-        };
+        let up = if snake.y == 0 { len_y } else { snake.y - 1 };
 
-        let down = if snake.y + 1 > len_y { 0 } else { snake.y + 1 };
+        let down = if snake.y == len_y { 0 } else { snake.y + 1 };
 
         if (up == after.y && right == before.x) || (up == before.y && right == after.x) {
             ("curved_body".to_string(), 0)
