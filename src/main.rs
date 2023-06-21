@@ -240,7 +240,7 @@ impl Game {
                 return true;
             }
         }
-        false
+        return false;
     }
 
     fn add_apple(&mut self) {
