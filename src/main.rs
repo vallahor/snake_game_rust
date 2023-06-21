@@ -35,7 +35,7 @@ enum Direction {
 }
 
 impl Direction {
-    fn next(&self, pos: Vec2<usize>) -> (usize, usize) {
+    fn next(&self, pos: Vec2) -> (usize, usize) {
         match *self {
             Direction::UP => {
                 let y = if pos.y == 0 { GRID_Y - 1 } else { pos.y - 1 };
@@ -87,14 +87,14 @@ impl Direction {
 }
 
 #[derive(Default, Copy, Clone, Debug)]
-struct Vec2<T> {
-    x: T,
-    y: T,
+struct Vec2 {
+    x: usize,
+    y: usize,
 }
 
 #[derive(Default, Clone, Debug)]
 struct SnakeBody {
-    pos: Vec2<usize>,
+    pos: Vec2,
     direction: Direction,
 }
 
@@ -110,7 +110,7 @@ impl SnakeBody {
 #[derive(Default)]
 struct Game {
     snake: Vec<SnakeBody>,
-    apple: Vec2<usize>,
+    apple: Vec2,
     time: f32,
     score: usize,
     snake_body: HashMap<(String, i32), Texture2D>,
