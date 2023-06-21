@@ -104,7 +104,6 @@ impl SnakeBody {
 struct Game {
     snake: Vec<SnakeBody>,
     apple: Vec2<usize>,
-    board: [[BoardCell; GRID_X]; GRID_Y],
     time: f32,
     score: usize,
     snake_body: HashMap<(String, i32), Texture2D>,
@@ -126,7 +125,6 @@ impl Game {
                 },
             ],
             apple: Vec2 { x: 3, y: 7 },
-            board: [[BoardCell::EMPTY; GRID_X]; GRID_Y],
             time: 0.0,
             score: 0,
             snake_body: HashMap::new(),
@@ -183,35 +181,38 @@ impl Game {
                 y = 0;
             }
 
-            match self.board[y as usize][x as usize] {
-                BoardCell::APPLE => {
-                    self.score += 100;
-                    self.snake
-                        .push(SnakeBody::new(x as usize, y as usize, snake.direction));
-                    self.add_apple();
-                }
-                BoardCell::EMPTY => {
-                    let mut last_state = self.snake[len].clone();
+            if x as usize == self.apple.x && y as usize == self.apple.y {
+                self.score += 100;
+                self.snake
+                    .push(SnakeBody::new(x as usize, y as usize, snake.direction));
+                self.add_apple();
+            } else if self.snake_collide(x as usize, y as usize) {
+                println!("SNAKE");
+            } else {
+                let mut last_state = self.snake[len].clone();
 
-                    self.snake[len].pos.x = x as usize;
-                    self.snake[len].pos.y = y as usize;
+                self.snake[len].pos.x = x as usize;
+                self.snake[len].pos.y = y as usize;
 
-                    for index in 1..=len {
-                        let temp = self.snake[len - index].clone();
-                        self.snake[len - index] = last_state;
-                        last_state = temp;
-                    }
-                }
-                BoardCell::SNAKE_BODY => {
-                    println!("SNAKE");
+                for index in 1..=len {
+                    let temp = self.snake[len - index].clone();
+                    self.snake[len - index] = last_state;
+                    last_state = temp;
                 }
             }
         }
 
         self.time += rl.get_frame_time();
+    }
 
-        self.reset_board();
-        self.construct_board();
+    fn snake_collide(&self, x: usize, y: usize) -> bool {
+        for snake_index in 0..self.snake.len() {
+            let snake_pos = self.snake[snake_index].pos;
+            if snake_pos.x == x && snake_pos.y == y {
+                return true;
+            }
+        }
+        false
     }
 
     fn add_apple(&mut self) {
@@ -219,7 +220,7 @@ impl Game {
         let mut x = (rng.gen::<f32>() * GRID_X as f32) as usize;
         let mut y = (rng.gen::<f32>() * GRID_X as f32) as usize;
 
-        while self.board[y][x] != BoardCell::EMPTY {
+        while self.snake_collide(x, y) {
             x = (rng.gen::<f32>() * GRID_X as f32) as usize;
             y = (rng.gen::<f32>() * GRID_X as f32) as usize;
         }
@@ -253,20 +254,23 @@ impl Game {
 
         for y in 0..GRID_Y {
             for x in 0..GRID_X {
-                let color = match self.board[y][x] {
-                    BoardCell::EMPTY | BoardCell::SNAKE_BODY => Color::WHITE,
-                    BoardCell::APPLE => Color::RED,
-                };
-
                 render.draw_rectangle(
                     GRID_OFFSET + x as i32 * BLOCK_SIZE_X,
                     GRID_OFFSET + 1 + y as i32 * BLOCK_SIZE_Y,
                     BLOCK_SIZE_X - 1,
                     BLOCK_SIZE_Y - 1,
-                    color,
+                    Color::WHITE,
                 );
             }
         }
+
+        render.draw_rectangle(
+            GRID_OFFSET + self.apple.x as i32 * BLOCK_SIZE_X,
+            GRID_OFFSET + 1 + self.apple.y as i32 * BLOCK_SIZE_Y,
+            BLOCK_SIZE_X - 1,
+            BLOCK_SIZE_Y - 1,
+            Color::RED,
+        );
 
         let len = self.snake.len() - 1;
 
@@ -414,21 +418,6 @@ impl Game {
                     );
                 }
             }
-        }
-    }
-
-    fn reset_board(&mut self) {
-        for y in 0..GRID_Y {
-            for x in 0..GRID_X {
-                self.board[y][x].insert(BoardCell::EMPTY);
-            }
-        }
-    }
-
-    fn construct_board(&mut self) {
-        self.board[self.apple.y][self.apple.x].insert(BoardCell::APPLE);
-        for snake_body in &self.snake {
-            self.board[snake_body.pos.y][snake_body.pos.x].insert(BoardCell::SNAKE_BODY);
         }
     }
 }
