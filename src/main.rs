@@ -56,23 +56,28 @@ impl Direction {
         }
     }
 
-    fn change(&mut self, rl: &RaylibHandle) {
-        if rl.is_key_pressed(KEY_W) {
-            if *self != Self::DOWN {
-                *self = Self::UP;
+    fn change(&mut self, key: KeyboardKey) {
+        match key {
+            KEY_W => {
+                if *self != Self::DOWN {
+                    *self = Self::UP;
+                }
+            } KEY_S => {
+                if *self != Self::UP {
+                    *self = Self::DOWN;
+                }
+            },
+            KEY_A => {
+                if *self != Self::RIGHT {
+                    *self = Self::LEFT;
+                }
+            },
+            KEY_D => {
+                if *self != Self::LEFT {
+                    *self = Self::RIGHT;
+                }
             }
-        } else if rl.is_key_pressed(KEY_S) {
-            if *self != Self::UP {
-                *self = Self::DOWN;
-            }
-        } else if rl.is_key_pressed(KEY_A) {
-            if *self != Self::RIGHT {
-                *self = Self::LEFT;
-            }
-        } else if rl.is_key_pressed(KEY_D) {
-            if *self != Self::LEFT {
-                *self = Self::RIGHT;
-            }
+            _ => {}
         }
     }
 
@@ -184,28 +189,34 @@ impl Game {
         }
     }
 
-    fn input(&mut self, rl: &RaylibHandle) {
-        if rl.is_key_pressed(KEY_SPACE) {
-            match self.state {
-                State::PLAYING | State::PAUSED => {
-                    self.paused = !self.paused;
-                    self.state = if self.paused {
-                        State::PAUSED
-                    } else {
-                        State::PLAYING
-                    };
+    fn input(&mut self, rl: &mut RaylibHandle) {
+        if let Some(key) =  rl.get_key_pressed() {
+            match key {
+                KEY_SPACE => {
+                    match self.state {
+                        State::PLAYING | State::PAUSED => {
+                            self.paused = !self.paused;
+                            self.state = if self.paused {
+                                State::PAUSED
+                            } else {
+                                State::PLAYING
+                            };
+                        }
+                        State::START => {
+                            self.state = State::PLAYING;
+                        }
+                        State::GAMEOVER => self.reset(),
+                    }
                 }
-                State::START => {
-                    self.state = State::PLAYING;
+                _ => {
+                    self.next_direction.change(key);
                 }
-                State::GAMEOVER => self.reset(),
             }
-        }
+        };
     }
 
-    fn update(&mut self, rl: &RaylibHandle) {
+    fn update(&mut self, dt: f32) {
         let len = self.snake.len() - 1;
-        self.next_direction.change(rl);
 
         if self.time > 0.5 && !self.paused {
             self.time = 0.0;
@@ -236,7 +247,7 @@ impl Game {
             }
         }
 
-        self.time += rl.get_frame_time();
+        self.time += dt;
     }
 
     fn snake_collide(&self, x: usize, y: usize) -> bool {
@@ -515,10 +526,10 @@ fn main() {
     game.load_assets(&mut rl, &thread);
 
     while !rl.window_should_close() {
-        game.input(&rl);
+        game.input(&mut rl);
         let mouse_at = rl.get_mouse_position();
 
-        game.update(&rl);
+        game.update(rl.get_frame_time());
 
         let mut render = rl.begin_drawing(&thread);
 
