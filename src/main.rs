@@ -41,18 +41,12 @@ impl Direction {
                 let y = if pos.y == 0 { GRID_Y - 1 } else { pos.y - 1 };
                 (pos.x, y)
             }
-            Direction::DOWN => {
-                let y = if pos.y == GRID_Y - 1 { 0 } else { pos.y + 1 };
-                (pos.x, y)
-            }
+            Direction::DOWN => (pos.x, (pos.y + 1) % GRID_Y),
             Direction::LEFT => {
                 let x = if pos.x == 0 { GRID_X - 1 } else { pos.x - 1 };
                 (x, pos.y)
             }
-            Direction::RIGHT => {
-                let x = if pos.x == GRID_Y - 1 { 0 } else { pos.x + 1 };
-                (x, pos.y)
-            }
+            Direction::RIGHT => ((pos.x + 1) % GRID_X, pos.y),
         }
     }
 
@@ -62,16 +56,17 @@ impl Direction {
                 if *self != Self::DOWN {
                     *self = Self::UP;
                 }
-            } KEY_S => {
+            }
+            KEY_S => {
                 if *self != Self::UP {
                     *self = Self::DOWN;
                 }
-            },
+            }
             KEY_A => {
                 if *self != Self::RIGHT {
                     *self = Self::LEFT;
                 }
-            },
+            }
             KEY_D => {
                 if *self != Self::LEFT {
                     *self = Self::RIGHT;
@@ -190,24 +185,22 @@ impl Game {
     }
 
     fn input(&mut self, rl: &mut RaylibHandle) {
-        if let Some(key) =  rl.get_key_pressed() {
+        if let Some(key) = rl.get_key_pressed() {
             match key {
-                KEY_SPACE => {
-                    match self.state {
-                        State::PLAYING | State::PAUSED => {
-                            self.paused = !self.paused;
-                            self.state = if self.paused {
-                                State::PAUSED
-                            } else {
-                                State::PLAYING
-                            };
-                        }
-                        State::START => {
-                            self.state = State::PLAYING;
-                        }
-                        State::GAMEOVER => self.reset(),
+                KEY_SPACE => match self.state {
+                    State::PLAYING | State::PAUSED => {
+                        self.paused = !self.paused;
+                        self.state = if self.paused {
+                            State::PAUSED
+                        } else {
+                            State::PLAYING
+                        };
                     }
-                }
+                    State::START => {
+                        self.state = State::PLAYING;
+                    }
+                    State::GAMEOVER => self.reset(),
+                },
                 _ => {
                     self.next_direction.change(key);
                 }
