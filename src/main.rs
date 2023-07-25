@@ -417,11 +417,11 @@ impl Game {
 
         let left = if snake.x == 0 { len_x } else { snake.x - 1 };
 
-        let right = if snake.x == len_x { 0 } else { snake.x + 1 };
+        let right = (snake.x + 1) % GRID_X;
 
         let up = if snake.y == 0 { len_y } else { snake.y - 1 };
 
-        let down = if snake.y == len_y { 0 } else { snake.y + 1 };
+        let down = (snake.y + 1) % GRID_Y;
 
         if (up == after.y && right == before.x) || (up == before.y && right == after.x) {
             ("curved_body".to_string(), 0)
