@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::env;
 
 use rand::prelude::*;
@@ -109,7 +109,7 @@ impl SnakeBody {
 
 #[derive(Default)]
 struct Game {
-    snake: Vec<SnakeBody>,
+    snake: VecDeque<SnakeBody>,
     apple: Vec2,
     time: f32,
     score: usize,
@@ -122,7 +122,7 @@ struct Game {
 impl Game {
     fn new() -> Game {
         Game {
-            snake: vec![
+            snake: VecDeque::from([
                 SnakeBody {
                     pos: Vec2 { x: 3, y: 3 },
                     direction: Direction::DOWN,
@@ -131,7 +131,7 @@ impl Game {
                     pos: Vec2 { x: 3, y: 4 },
                     direction: Direction::DOWN,
                 },
-            ],
+            ]),
             apple: Vec2 { x: 3, y: 7 },
             time: 0.0,
             score: 0,
@@ -143,7 +143,7 @@ impl Game {
     }
 
     fn reset(&mut self) {
-        self.snake = vec![
+        self.snake = VecDeque::from([
             SnakeBody {
                 pos: Vec2 { x: 3, y: 3 },
                 direction: Direction::DOWN,
@@ -152,7 +152,7 @@ impl Game {
                 pos: Vec2 { x: 3, y: 4 },
                 direction: Direction::DOWN,
             },
-        ];
+        ]);
 
         self.apple = Vec2 { x: 3, y: 7 };
         self.time = 0.0;
@@ -164,7 +164,6 @@ impl Game {
 
     fn load_assets(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {
         let assets = vec!["head", "straight_body", "curved_body", "tail"];
-        println!("{}", std::env::current_dir().unwrap().display());
         for asset in assets {
             let mut image = Image::load_image(&format!(
                 "{}/assets/{}.png",
@@ -221,22 +220,14 @@ impl Game {
 
             if x == self.apple.x && y == self.apple.y {
                 self.score += 100;
-                self.snake.push(SnakeBody::new(x, y, snake.direction));
+                self.snake.push_back(SnakeBody::new(x, y, snake.direction));
                 self.add_apple();
             } else if self.snake_collide(x, y) {
                 self.paused = true;
                 self.state = State::GAMEOVER;
             } else {
-                let mut last_state = self.snake[len].clone();
-
-                self.snake[len].pos.x = x;
-                self.snake[len].pos.y = y;
-
-                for index in 1..=len {
-                    let temp = self.snake[len - index].clone();
-                    self.snake[len - index] = last_state;
-                    last_state = temp;
-                }
+                self.snake.push_back(SnakeBody::new(x, y, snake.direction));
+                self.snake.pop_front();
             }
         }
 
